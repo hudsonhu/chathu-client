@@ -6,6 +6,10 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
+import javax.net.ssl.*;
+import java.security.SecureRandom;
+import java.security.KeyStore;
+
 public class Client implements Runnable {
     InputStream in;
     OutputStream out;
@@ -20,18 +24,31 @@ public class Client implements Runnable {
     boolean isConnectionEstablished = false, isRunning = false;
 
     public void connectServer(String ip, int port, String name) {
-        try {
-            socketToServer = new Socket(ip, port);
+        try {  // verification is skipped
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {return null;}
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType){}
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType){}
+                    }
+            };
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new SecureRandom());
+            SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+            socketToServer = sslSocketFactory.createSocket(ip, port);
+
             in = socketToServer.getInputStream();
             out = socketToServer.getOutputStream();
+
             this.name = name;
             isConnectionEstablished = socketToServer.isConnected();
             isRunning = true;
-            ui.updateChat(" Connected to server as " + name);
+
+            ui.updateChat("Connected to server via TLS as " + name);
             new Thread(new ConsoleListener(this, true)).start();
             new Thread(new ServerHandler(this)).start();
         } catch (Exception e) {
-            throw new RuntimeException("Error connecting to server", e);
+            throw new RuntimeException("Error connecting to SSL server", e);
         }
     }
 
