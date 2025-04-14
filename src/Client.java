@@ -17,7 +17,8 @@ public class Client implements Runnable {
     String name;
     Socket socketToServer;
     ServerSocket socketToClient;
-    ClientUI ui;
+//    ClientUI ui;
+    NewUi_edit ui;
     Map<String, String> clients;  // <userId, ip:port>
     Map<String, Socket> clientSockets;  // <userId, socket>
     Map<String, ArrayList<String>> stuckMessages;  // <userId, messages>
@@ -71,7 +72,7 @@ public class Client implements Runnable {
     }
 
     public void run() {
-        ui = new ClientUI(this);
+        ui = new NewUi_edit(this);
         new Thread(ui).start();
         clients = new Hashtable<>();
         clientSockets = new Hashtable<>();

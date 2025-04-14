@@ -1,10 +1,10 @@
+import com.formdev.flatlaf.FlatLightLaf;
 import javax.swing.*;
 import java.awt.*;
 import java.util.Map;
 
 public class ClientUI extends JFrame implements Runnable {
     private final Client client;
-
 
     JPanel panelBottom; // the panel is not visible in output
     JLabel labelConnectStatus, labelUserName, labelServerAddress, labelServerPort,
@@ -22,6 +22,11 @@ public class ClientUI extends JFrame implements Runnable {
     }
 
     public void run() {
+        try {
+            UIManager.setLookAndFeel(new FlatLightLaf());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setSize(400, 500);
         this.setTitle("ChatHu Client - Not connected");
