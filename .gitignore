@@ -2,3 +2,5 @@
 /.idea/
 /src/code.txt
 /src/codeExtractor.py
+/chat_hu.db
+/target/
