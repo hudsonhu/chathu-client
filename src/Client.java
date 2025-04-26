@@ -24,6 +24,10 @@ public class Client implements Runnable {
     Map<String, ArrayList<String>> stuckMessages;  // <userId, messages>
     boolean isConnectionEstablished = false, isRunning = false;
 
+    private LocalDBManager dbManager;
+    private String dbFileName = "chat_hu.db";  // db file
+
+
     public void connectServer(String ip, int port, String name) {
         try {  // verification is skipped
             TrustManager[] trustAllCerts = new TrustManager[]{
@@ -50,6 +54,8 @@ public class Client implements Runnable {
             new Thread(new ServerHandler(this)).start();
         } catch (Exception e) {
             throw new RuntimeException("Error connecting to SSL server", e);
+            // retry
+//            connectServer(ip, port, name);
         }
     }
 
@@ -77,6 +83,16 @@ public class Client implements Runnable {
         clients = new Hashtable<>();
         clientSockets = new Hashtable<>();
         stuckMessages = new Hashtable<>();
+
+        // load db
+        try {
+            dbManager = new LocalDBManager(dbFileName);
+        } catch (Exception e) {
+            System.err.println("Error loading database");
+            e.printStackTrace();
+        }
+
+
         acceptClient();
     }
 
