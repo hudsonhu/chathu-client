@@ -303,6 +303,14 @@ public class NewUi_edit extends JFrame implements Runnable {
         }
     }
 
+    public void autoConnect(String ip, int port, String user) {
+        inputServerIp.setText(ip);
+        inputServerPort.setText(String.valueOf(port));
+        inputUserName.setText(user);
+        buttonConnect.doClick();
+    }
+
+
 //    public static void main(String[] args) {
 //        Client client = new Client();
 //        SwingUtilities.invokeLater(new NewUi_edit(client));

@@ -25,6 +25,10 @@ public class Client implements Runnable {
     Map<String, ArrayList<String>> stuckMessages;  // <userId, messages>
     boolean isConnectionEstablished = false, isRunning = false;
 
+    private String autoSrvIp;
+    private int    autoSrvPort;
+    private String autoUser;
+
     private LocalDBManager dbManager;
     private String dbFileName = "chat_hu.db";  // db file
 
@@ -80,22 +84,34 @@ public class Client implements Runnable {
             }
         }
     }
-
+    @Override
     public void run() {
-        ui = new NewUi_edit(this);
-        new Thread(ui).start();
-        clients = new Hashtable<>();
-        clientSockets = new Hashtable<>();
-        stuckMessages = new Hashtable<>();
 
-        // load db
+        try {
+            ui = new NewUi_edit(this);
+            javax.swing.SwingUtilities.invokeAndWait(ui);   // block EDT until UI is ready
+        } catch (Exception ex) {                            // (InvocationTargetException|InterruptedException)
+            throw new RuntimeException("Failed to init UI", ex);
+        }
+
+        if (autoSrvIp != null) {
+            String ip   = autoSrvIp;
+            int    port = autoSrvPort;
+            String user = autoUser;
+            javax.swing.SwingUtilities.invokeLater(() ->
+                    ui.autoConnect(ip, port, user));
+        }
+
+        clients        = new java.util.Hashtable<>();
+        clientSockets  = new java.util.Hashtable<>();
+        stuckMessages  = new java.util.Hashtable<>();
+
         try {
             dbManager = new LocalDBManager(dbFileName);
         } catch (Exception e) {
             System.err.println("Error loading database");
             e.printStackTrace();
         }
-
 
         acceptClient();
     }
@@ -251,7 +267,25 @@ public class Client implements Runnable {
 
 
     public static void main(String[] args) {
-        Client client = new Client();
-        new Thread(client).start();
+        String user = null, server = "127.0.0.1";
+        int    port = 2006;
+        for (String a : args) {
+            if (a.startsWith("--user="))   user   = a.substring(7);
+            else if (a.startsWith("--srv="))  server = a.substring(6);
+            else if (a.startsWith("--port=")) port   = Integer.parseInt(a.substring(7));
+        }
+
+        Client c = new Client();
+        c.autoSrvIp   = server;     // --srv
+        c.autoSrvPort = port;       // --port
+        c.autoUser    = (user != null ? user :
+                "User" + (System.nanoTime() % 100000));
+        new Thread(c).start();
+
+        String finalServer = server;
+        int finalPort = port;
+        java.awt.EventQueue.invokeLater(() ->
+                c.ui.autoConnect(finalServer, finalPort, c.name));
     }
+
 }
