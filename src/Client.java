@@ -32,8 +32,21 @@ public class Client implements Runnable {
     private LocalDBManager dbManager;
     private String dbFileName = "chat_hu.db";  // db file
 
+    private final java.util.concurrent.ScheduledExecutorService scheduler =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+
+
     public LocalDBManager getDb() {
         return dbManager;
+    }
+
+    public java.util.List<Message> getHistoryWith(String peer) {
+        try {                                  // ownerUser always current user
+            return dbManager.getChatHistory(name, peer);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return java.util.Collections.emptyList();
+        }
     }
 
     public void connectServer(String ip, int port, String name) {
@@ -112,7 +125,9 @@ public class Client implements Runnable {
             System.err.println("Error loading database");
             e.printStackTrace();
         }
-
+        scheduler.scheduleAtFixedRate(() -> {
+            if (isConnectionEstablished) refreshUser();
+        }, 0, 3, java.util.concurrent.TimeUnit.SECONDS);
         acceptClient();
     }
 
@@ -158,6 +173,7 @@ public class Client implements Runnable {
                 dbManager.close();
             }
             ui.isConnected(false);
+            scheduler.shutdownNow();
         } catch (IOException e) {
             System.out.println();
         }

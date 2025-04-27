@@ -93,8 +93,31 @@ public class NewUi_edit extends JFrame implements Runnable {
         userList = new JList<>(userListModel);
         JScrollPane scrollPane = new JScrollPane(userList);
         scrollPane.setPreferredSize(new Dimension(250, 0));
+        userList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                String sel = userList.getSelectedValue();   // 形如 "Bob - 10.0.0.5:1234"
+                if (sel == null) return;
+                String peer = sel.split(" - ")[0];
+                loadHistory(peer);
+                inputRecipient.setText(peer);
+            }
+        });
+
+
         return scrollPane;
     }
+
+    private void loadHistory(String peer) {
+        java.util.List<Message> list = client.getHistoryWith(peer);
+        messageBoard.setText("");                        // 清屏
+        for (Message m : list) {
+            String who = m.isOutgoing() ? "You" : m.getSender();
+            messageBoard.append(String.format("[%tT] %s: %s%n",
+                    m.getTimestamp(), who, m.getContent()));
+        }
+        messageBoard.setCaretPosition(messageBoard.getDocument().getLength());
+    }
+
 
     /**
      * 构建聊天输入区域（底部输入框 + 发送按钮）
