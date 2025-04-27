@@ -3,6 +3,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
@@ -27,6 +28,9 @@ public class Client implements Runnable {
     private LocalDBManager dbManager;
     private String dbFileName = "chat_hu.db";  // db file
 
+    public LocalDBManager getDb() {
+        return dbManager;
+    }
 
     public void connectServer(String ip, int port, String name) {
         try {  // verification is skipped
@@ -134,6 +138,9 @@ public class Client implements Runnable {
         isRunning = false;
         try {
             socketToServer.close();
+            if (dbManager != null) {
+                dbManager.close();
+            }
             ui.isConnected(false);
         } catch (IOException e) {
             System.out.println();
@@ -178,6 +185,22 @@ public class Client implements Runnable {
             OutputStream out = socketToPeer.getOutputStream();
             out.write(("CHAT_" + name + "_" + message).getBytes());
             ui.updateChat(" You: " + message);
+
+            try {                                      // <–– 新增
+                Message m = new Message(
+                        name,              // ownerUser
+                        name,              // sender
+                        recipient,         // receiver
+                        message,
+                        System.currentTimeMillis(),
+                        true               // outgoing
+                );
+                dbManager.insertMessage(m);
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+
+
         } catch (IOException e) {
             e.printStackTrace();
         }

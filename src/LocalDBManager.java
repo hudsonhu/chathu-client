@@ -35,7 +35,7 @@ public class LocalDBManager {
     }
 
 
-    public void insertMessage(Message msg) throws SQLException {
+    public synchronized void insertMessage(Message msg) throws SQLException {
         String sql = "INSERT INTO messages(owner_user, sender, receiver, content, timestamp, is_outgoing) "
                 + "VALUES(?,?,?,?,?,?)";
         try(PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -50,7 +50,7 @@ public class LocalDBManager {
     }
 
     // 查询与某个对话的历史记录(按时间顺序)
-    public List<Message> getChatHistory(String ownerUser, String peer) throws SQLException {
+    public synchronized List<Message> getChatHistory(String ownerUser, String peer) throws SQLException {
         String sql = "SELECT id, sender, receiver, content, timestamp, is_outgoing "
                 + " FROM messages "
                 + " WHERE owner_user=? "
