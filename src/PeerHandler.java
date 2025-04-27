@@ -1,6 +1,7 @@
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.sql.SQLException;
 
 public class PeerHandler implements Runnable {
     private Socket socket;
@@ -51,7 +52,28 @@ public class PeerHandler implements Runnable {
             String[] list = message.split("_");
             String sender = list[1];
             String text = list[2];
-            client.ui.updateChat(" " + sender + ": " + text);
+//            client.ui.updateChat(" " + sender + ": " + text);
+            javax.swing.SwingUtilities.invokeLater(() ->
+                    client.ui.appendMessage(sender,                     // peer
+                            false,                      // incoming
+                            System.currentTimeMillis(),
+                            text)
+            );
+
+            try {
+                Message m = new Message(
+                        client.name,        // ownerUser
+                        sender,             // sender
+                        client.name,        // receiver: self
+                        text,
+                        System.currentTimeMillis(),
+                        false               // incoming
+                );
+                client.getDb().insertMessage(m);
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+
             if (!client.clients.containsKey(sender)) {
                 client.getUserAddress(sender);
             }

@@ -3,6 +3,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Map;
@@ -17,11 +18,36 @@ public class Client implements Runnable {
     String name;
     Socket socketToServer;
     ServerSocket socketToClient;
-    ClientUI ui;
+//    ClientUI ui;
+    NewUi_edit ui;
     Map<String, String> clients;  // <userId, ip:port>
     Map<String, Socket> clientSockets;  // <userId, socket>
     Map<String, ArrayList<String>> stuckMessages;  // <userId, messages>
     boolean isConnectionEstablished = false, isRunning = false;
+
+    private String autoSrvIp;
+    private int    autoSrvPort;
+    private String autoUser;
+
+    private LocalDBManager dbManager;
+    private String dbFileName = "chat_hu.db";  // db file
+
+    private final java.util.concurrent.ScheduledExecutorService scheduler =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+
+
+    public LocalDBManager getDb() {
+        return dbManager;
+    }
+
+    public java.util.List<Message> getHistoryWith(String peer) {
+        try {                                  // ownerUser always current user
+            return dbManager.getChatHistory(name, peer);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return java.util.Collections.emptyList();
+        }
+    }
 
     public void connectServer(String ip, int port, String name) {
         try {  // verification is skipped
@@ -49,6 +75,8 @@ public class Client implements Runnable {
             new Thread(new ServerHandler(this)).start();
         } catch (Exception e) {
             throw new RuntimeException("Error connecting to SSL server", e);
+            // retry
+//            connectServer(ip, port, name);
         }
     }
 
@@ -69,13 +97,37 @@ public class Client implements Runnable {
             }
         }
     }
-
+    @Override
     public void run() {
-        ui = new ClientUI(this);
-        new Thread(ui).start();
-        clients = new Hashtable<>();
-        clientSockets = new Hashtable<>();
-        stuckMessages = new Hashtable<>();
+
+        try {
+            ui = new NewUi_edit(this);
+            javax.swing.SwingUtilities.invokeAndWait(ui);   // block EDT until UI is ready
+        } catch (Exception ex) {                            // (InvocationTargetException|InterruptedException)
+            throw new RuntimeException("Failed to init UI", ex);
+        }
+
+        if (autoSrvIp != null) {
+            String ip   = autoSrvIp;
+            int    port = autoSrvPort;
+            String user = autoUser;
+            javax.swing.SwingUtilities.invokeLater(() ->
+                    ui.autoConnect(ip, port, user));
+        }
+
+        clients        = new java.util.Hashtable<>();
+        clientSockets  = new java.util.Hashtable<>();
+        stuckMessages  = new java.util.Hashtable<>();
+
+        try {
+            dbManager = new LocalDBManager(dbFileName);
+        } catch (Exception e) {
+            System.err.println("Error loading database");
+            e.printStackTrace();
+        }
+        scheduler.scheduleAtFixedRate(() -> {
+            if (isConnectionEstablished) refreshUser();
+        }, 0, 3, java.util.concurrent.TimeUnit.SECONDS);
         acceptClient();
     }
 
@@ -117,7 +169,11 @@ public class Client implements Runnable {
         isRunning = false;
         try {
             socketToServer.close();
+            if (dbManager != null) {
+                dbManager.close();
+            }
             ui.isConnected(false);
+            scheduler.shutdownNow();
         } catch (IOException e) {
             System.out.println();
         }
@@ -160,7 +216,27 @@ public class Client implements Runnable {
         try {
             OutputStream out = socketToPeer.getOutputStream();
             out.write(("CHAT_" + name + "_" + message).getBytes());
-            ui.updateChat(" You: " + message);
+//            ui.updateChat(" You: " + message);  // deprecated
+            ui.appendMessage(recipient,                      // peer
+                    true,                           // outgoing
+                    System.currentTimeMillis(),
+                    message);
+
+            try {                                      // <–– 新增
+                Message m = new Message(
+                        name,              // ownerUser
+                        name,              // sender
+                        recipient,         // receiver
+                        message,
+                        System.currentTimeMillis(),
+                        true               // outgoing
+                );
+                dbManager.insertMessage(m);
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -211,7 +287,25 @@ public class Client implements Runnable {
 
 
     public static void main(String[] args) {
-        Client client = new Client();
-        new Thread(client).start();
+        String user = null, server = "127.0.0.1";
+        int    port = 2006;
+        for (String a : args) {
+            if (a.startsWith("--user="))   user   = a.substring(7);
+            else if (a.startsWith("--srv="))  server = a.substring(6);
+            else if (a.startsWith("--port=")) port   = Integer.parseInt(a.substring(7));
+        }
+
+        Client c = new Client();
+        c.autoSrvIp   = server;     // --srv
+        c.autoSrvPort = port;       // --port
+        c.autoUser    = (user != null ? user :
+                "User" + (System.nanoTime() % 100000));
+        new Thread(c).start();
+
+        String finalServer = server;
+        int finalPort = port;
+        java.awt.EventQueue.invokeLater(() ->
+                c.ui.autoConnect(finalServer, finalPort, c.name));
     }
+
 }
