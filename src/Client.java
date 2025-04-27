@@ -216,7 +216,11 @@ public class Client implements Runnable {
         try {
             OutputStream out = socketToPeer.getOutputStream();
             out.write(("CHAT_" + name + "_" + message).getBytes());
-            ui.updateChat(" You: " + message);
+//            ui.updateChat(" You: " + message);  // deprecated
+            ui.appendMessage(recipient,                      // peer
+                    true,                           // outgoing
+                    System.currentTimeMillis(),
+                    message);
 
             try {                                      // <–– 新增
                 Message m = new Message(

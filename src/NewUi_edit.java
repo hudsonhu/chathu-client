@@ -15,6 +15,12 @@ public class NewUi_edit extends JFrame implements Runnable {
     private JLabel labelConnectStatus, labelUserName, labelServerAddress, labelServerPort,userListTitle;
     private JTextField inputUserName, inputServerIp, inputServerPort;
 
+    /* == Chat-format helpers == */
+    private final java.text.SimpleDateFormat dateFmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
+    private final java.text.SimpleDateFormat timeFmt = new java.text.SimpleDateFormat("HH:mm:ss");
+    private volatile String currentChatPeer = null;
+    private volatile String lastDateHeader  = "";
+
 
     NewUi_edit(Client client) {
         this.client = client;
@@ -109,14 +115,16 @@ public class NewUi_edit extends JFrame implements Runnable {
 
     private void loadHistory(String peer) {
         java.util.List<Message> list = client.getHistoryWith(peer);
-        messageBoard.setText("");                        // 清屏
+
+        messageBoard.setText("");
+        currentChatPeer = peer;
+        lastDateHeader  = "";
+
         for (Message m : list) {
-            String who = m.isOutgoing() ? "You" : m.getSender();
-            messageBoard.append(String.format("[%tT] %s: %s%n",
-                    m.getTimestamp(), who, m.getContent()));
+            appendMessage(peer, m.isOutgoing(), m.getTimestamp(), m.getContent());
         }
-        messageBoard.setCaretPosition(messageBoard.getDocument().getLength());
     }
+
 
 
     /**
@@ -302,14 +310,48 @@ public class NewUi_edit extends JFrame implements Runnable {
         messageBoard.setCaretPosition(messageBoard.getDocument().getLength());
     }
 
+    /** 以差分方式刷新左侧用户列表，不再全清全填 */
     public void updateUsers() {
-        System.out.println("Updating user list");
-        userListModel.clear();
-        for (Map.Entry<String, String> entry : client.clients.entrySet()) {
-            userListModel.addElement(entry.getKey() + " - " + entry.getValue());
+        String selected = userList.getSelectedValue();          // 形如 “Bob - 10.0.0.6:1234”
+        String selectedUser = (selected == null) ? null
+                : selected.substring(0, selected.indexOf(" -"));
+
+        java.util.Set<String> oldUsers = new java.util.HashSet<>();
+        for (int i = 0; i < userListModel.getSize(); i++) {
+            oldUsers.add(userListModel.get(i).substring(0,
+                    userListModel.get(i).indexOf(" -")));
         }
-        userListTitle.setText(" Online Users (" + client.clients.size() + ")");
+        java.util.Set<String> newUsers = client.clients.keySet();
+
+        java.util.Set<String> toAdd    = new java.util.HashSet<>(newUsers);
+        toAdd.removeAll(oldUsers);            // added
+        java.util.Set<String> toRemove = new java.util.HashSet<>(oldUsers);
+        toRemove.removeAll(newUsers);         // logged out
+
+        if (!toRemove.isEmpty()) {
+            for (int idx = userListModel.getSize() - 1; idx >= 0; idx--) {
+                String u = userListModel.get(idx).substring(0,
+                        userListModel.get(idx).indexOf(" -"));
+                if (toRemove.contains(u)) userListModel.remove(idx);
+            }
+        }
+
+        for (String u : toAdd) {
+            userListModel.addElement(u + " - " + client.clients.get(u));
+        }
+
+        userListTitle.setText(" Online Users (" + userListModel.getSize() + ")");
+
+        if (selectedUser != null && newUsers.contains(selectedUser)) {
+            for (int i = 0; i < userListModel.size(); i++) {
+                if (userListModel.get(i).startsWith(selectedUser + " -")) {
+                    userList.setSelectedIndex(i);
+                    break;
+                }
+            }
+        }
     }
+
 
     public void isConnected(boolean connected) {
         System.out.println("Connected: " + connected);
@@ -332,6 +374,31 @@ public class NewUi_edit extends JFrame implements Runnable {
         inputUserName.setText(user);
         buttonConnect.doClick();
     }
+
+    public void appendMessage(String peer, boolean outgoing, long ts, String body) {
+        javax.swing.SwingUtilities.invokeLater(() -> {               // ensure EDT
+            if (!peer.equals(currentChatPeer)) {
+                if (messageBoard.getDocument().getLength() > 0) {
+                    messageBoard.append("\n\n------------------------------\n");
+                }
+                currentChatPeer = peer;
+                lastDateHeader  = "";        // reset after switching
+            }
+
+            String d = dateFmt.format(new java.util.Date(ts));
+            if (!d.equals(lastDateHeader)) {
+                messageBoard.append("=== " + d + " ===\n");
+                lastDateHeader = d;
+            }
+
+            String who = outgoing ? "You" : peer;
+            messageBoard.append("[" + timeFmt.format(new java.util.Date(ts)) + "] "
+                    + who + ": " + body + "\n");
+
+            messageBoard.setCaretPosition(messageBoard.getDocument().getLength());
+        });
+    }
+
 
 
 //    public static void main(String[] args) {

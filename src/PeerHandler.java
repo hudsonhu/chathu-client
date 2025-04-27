@@ -52,7 +52,13 @@ public class PeerHandler implements Runnable {
             String[] list = message.split("_");
             String sender = list[1];
             String text = list[2];
-            client.ui.updateChat(" " + sender + ": " + text);
+//            client.ui.updateChat(" " + sender + ": " + text);
+            javax.swing.SwingUtilities.invokeLater(() ->
+                    client.ui.appendMessage(sender,                     // peer
+                            false,                      // incoming
+                            System.currentTimeMillis(),
+                            text)
+            );
 
             try {
                 Message m = new Message(

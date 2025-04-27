@@ -78,7 +78,7 @@ public class ServerHandler implements Runnable {
                 list_clients.put(userId, ip + ":" + port);
             }
             client.clients = list_clients;
-            client.ui.updateUsers();
+            javax.swing.SwingUtilities.invokeLater(() -> client.ui.updateUsers());
         } else if (message.startsWith("KICKED by")) {
             String[] split = message.split(" ");
             String kicker = split[2];
