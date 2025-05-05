@@ -156,6 +156,8 @@ public class NewUi_edit extends JFrame implements Runnable {
         inputPanel.add(inputMessage);
         inputPanel.add(buttonSend);
 
+        inputMessage.addActionListener(e -> buttonSend.doClick());
+
 
         return inputPanel;
     }
