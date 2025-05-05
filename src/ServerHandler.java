@@ -47,6 +47,7 @@ public class ServerHandler implements Runnable {
                 + client.socketToServer.getInetAddress().getHostAddress() + ":"
                 + client.socketToServer.getPort());
         client.ui.isConnected(client.isConnectionEstablished);
+        client.refreshUser();
         while (client.isConnectionEstablished) {
             String message = receive();
             if (message == null) {
