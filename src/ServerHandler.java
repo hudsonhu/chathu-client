@@ -7,7 +7,8 @@ public class ServerHandler implements Runnable {
     Client client;
     InputStream in;
     OutputStream out;
-
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger(ServerHandler.class.getName());
 
     @Override
     public void run() {
@@ -28,32 +29,39 @@ public class ServerHandler implements Runnable {
             int read = in.read(buffer);
             if (read == -1) {
                 client.disconnect();
-                throw new RuntimeException("Error receiving message");
+                LOG.warning("Socket with" + client.socketToServer.getInetAddress().getHostAddress() + ":"
+                        + client.socketToServer.getPort() + " is closed");
             }
             return new String(buffer, 0, read);
         } catch (IOException e) {
             client.disconnect();
-            throw new RuntimeException("Error receiving message", e);
+            LOG.warning("Socket with" + client.socketToServer.getInetAddress().getHostAddress() + ":"
+                    + client.socketToServer.getPort() + " is closed");
+            // compile without throwing exception
+            return null;
         }
     }
 
     private void startListening() {
-        System.out.println("Connected to " + client.socketToServer.getInetAddress().getHostAddress() +
-                ":" + client.socketToServer.getPort());
+        LOG.info("Server connection established: "
+                + client.socketToServer.getInetAddress().getHostAddress() + ":"
+                + client.socketToServer.getPort());
         client.ui.isConnected(client.isConnectionEstablished);
         while (client.isConnectionEstablished) {
             String message = receive();
-            System.out.println("Message received: " + message);
+            if (message == null) {
+                break;
+            }
+            LOG.fine("Msg from server: " + message);
             // TODO: Handle message
 //            client.ui.updateChat(" DEBUG " + message);
             try {
                 resolveMessage(message);
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.warning("Error resolving message: " + e.getMessage());
             }
         }
-        System.out.println("Disconnected from " + client.socketToServer.getInetAddress().getHostAddress() +
-                ":" + client.socketToServer.getPort());
+        LOG.info("Server connection closed");
         client.ui.isConnected(false);
         client.disconnect();
     }

@@ -354,7 +354,6 @@ public class NewUi_edit extends JFrame implements Runnable {
 
 
     public void isConnected(boolean connected) {
-        System.out.println("Connected: " + connected);
         if (connected) {
             setTitle("ChatHu Client - Connected");
             labelConnectStatus.setText("      Connected       ");

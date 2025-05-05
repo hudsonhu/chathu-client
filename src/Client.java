@@ -34,6 +34,9 @@ public class Client implements Runnable {
 
     private final java.util.concurrent.ScheduledExecutorService scheduler =
             java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger(Client.class.getName());
+
 
 
     public LocalDBManager getDb() {
@@ -44,7 +47,7 @@ public class Client implements Runnable {
         try {                                  // ownerUser always current user
             return dbManager.getChatHistory(name, peer);
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.severe("Error getting chat history");
             return java.util.Collections.emptyList();
         }
     }
@@ -86,13 +89,13 @@ public class Client implements Runnable {
             try {
                 socketToClient = new ServerSocket(Integer.parseInt(port));
                 while (isRunning) {
-                    System.out.println("Waiting for client...");
+                    LOG.fine("Waiting for incoming P2P on port " + port);
                     Socket clientSocket = socketToClient.accept();
-                    System.out.println("Client connected");
+                    LOG.info("P2P peer connected from " + clientSocket.getInetAddress().getHostAddress());
                     new Thread(new PeerHandler(clientSocket, this)).start();
                 }
             } catch (Exception e) {
-                System.err.println("Error accepting client, changing port");
+                LOG.warning("Local port " + port + " busy, trying next available");
                 port = String.valueOf(Integer.parseInt(port) + 1);
             }
         }
@@ -122,8 +125,7 @@ public class Client implements Runnable {
         try {
             dbManager = new LocalDBManager(dbFileName);
         } catch (Exception e) {
-            System.err.println("Error loading database");
-            e.printStackTrace();
+            LOG.severe("Error initializing database: " + e.getMessage());
         }
         scheduler.scheduleAtFixedRate(() -> {
             if (isConnectionEstablished) refreshUser();
@@ -138,12 +140,12 @@ public class Client implements Runnable {
         String port = ipAndPortArray[1];
 
         if (ip == null) {
-            System.out.println("Client not found locally, getting from server...");
+            LOG.fine("Getting ip of peer " + name + " from server");
             getUserAddress(name);
             return;
         }
         try {
-            System.out.println("Trying to connect to " + ip + ":" + port);
+            LOG.fine("Dialing peer " + ip + ":" + port);
             String realIp = ip.replace("/", "");
             Socket socket = new Socket(realIp, Integer.parseInt(port));
             clientSockets.put(name, socket);
@@ -151,16 +153,18 @@ public class Client implements Runnable {
             new Thread(peerHandler).start();
             sendPendingMessage(name);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.warning("IO error: " + e.getMessage());
         }
     }
 
     public void send(String message) {
         try {
             out.write(message.getBytes());
-            System.out.println("Message sent: " + message);
+            LOG.fine("Sent to server: " + message);
         } catch (Exception e) {
-            throw new RuntimeException("Error sending message", e);
+            if (!message.equals("STOP")) {
+                LOG.warning("Error sending message to server, message: " + message);
+            }
         }
     }
 
@@ -173,9 +177,10 @@ public class Client implements Runnable {
                 dbManager.close();
             }
             ui.isConnected(false);
+            LOG.info("Disconnected from server");
             scheduler.shutdownNow();
         } catch (IOException e) {
-            System.out.println();
+            LOG.warning("Error closing socket");
         }
 
         isConnectionEstablished = false;
@@ -192,22 +197,21 @@ public class Client implements Runnable {
     public void sendChatMessage(String recipient, String message) {
         // check if recipient exist
         if (clients.get(recipient) == null) {
-            System.out.println("Recipient not found");
+            LOG.warning("Recipient '" + recipient + "' unknown, asking server");
             getUserAddress(recipient);
             pendingMessage(recipient, message);
-            System.out.println("Message to " + recipient + " is pending");
             return;
         }
 
         if (message.equals("")) {
-            System.out.println("Message is empty");
+            LOG.warning("Message is empty — ignored");
             return;
         }
 
         // check if recipient is connected
         Socket socketToPeer = clientSockets.get(recipient);
         while (socketToPeer == null) {
-            System.out.println("Recipient not connected, trying to connect...");
+            LOG.fine("Peer not yet connected, retrying socket");
             connectPeer(recipient);
             socketToPeer = clientSockets.get(recipient);
         }
@@ -233,12 +237,21 @@ public class Client implements Runnable {
                 );
                 dbManager.insertMessage(m);
             } catch (SQLException ex) {
-                ex.printStackTrace();
+                LOG.severe("Error inserting message into database");
             }
 
 
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.warning("Error sending message to peer " + recipient);
+            LOG.warning("IO error: " + e.getMessage());
+            ui.updateChat(" Error sending message to peer " + recipient);
+            if (clientSockets.get(recipient) == null) {
+                pendingMessage(recipient, message);
+            } else {
+                ui.updateChat(" Peer " + recipient + " not connected, message pending");
+            }
+        } finally {
+            ui.updateChat(" Sent to " + recipient + ": " + message);
         }
     }
 
@@ -287,6 +300,7 @@ public class Client implements Runnable {
 
 
     public static void main(String[] args) {
+        LogUtil.init();
         String user = null, server = "127.0.0.1";
         int    port = 2006;
         for (String a : args) {
@@ -301,11 +315,6 @@ public class Client implements Runnable {
         c.autoUser    = (user != null ? user :
                 "User" + (System.nanoTime() % 100000));
         new Thread(c).start();
-
-        String finalServer = server;
-        int finalPort = port;
-        java.awt.EventQueue.invokeLater(() ->
-                c.ui.autoConnect(finalServer, finalPort, c.name));
     }
 
 }

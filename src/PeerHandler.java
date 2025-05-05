@@ -13,6 +13,9 @@ public class PeerHandler implements Runnable {
     private String ip;
     private String port;
     boolean isConnectionAlive = false;
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger(ServerHandler.class.getName());
+
 
     /**
      * Handles the communication between two clients
@@ -37,12 +40,12 @@ public class PeerHandler implements Runnable {
             int read = in.read(buffer);
             if (read == -1) {
                 isConnectionAlive = false;
-                System.err.println("Error receiving message");
+                LOG.warning("Peer IO error");
             }
             return new String(buffer, 0, read);
         } catch (Exception e) {
             isConnectionAlive = false;
-            System.err.println("Error receiving message");
+            LOG.warning("Peer IO error: " + e.getMessage());
         }
         return null;
     }
@@ -71,7 +74,7 @@ public class PeerHandler implements Runnable {
                 );
                 client.getDb().insertMessage(m);
             } catch (SQLException ex) {
-                ex.printStackTrace();
+                LOG.warning("Error inserting message: " + ex.getMessage());
             }
 
             if (!client.clients.containsKey(sender)) {
@@ -84,7 +87,7 @@ public class PeerHandler implements Runnable {
     public void run() {
         while (isConnectionAlive) {
             String message = receive();
-            System.out.println("Message received: " + message);
+            LOG.fine("Msg from peer: " + message);
             if (message != null) {
                 resolveMessage(message);
             }
