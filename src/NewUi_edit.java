@@ -9,7 +9,7 @@ public class NewUi_edit extends JFrame implements Runnable {
 
     private JTextArea messageBoard;
     private JTextField inputMessage,inputRecipient;
-    private JButton buttonSend,buttonBroadcast,buttonRefreshUsers,buttonLogout,buttonConnect;
+    private JButton buttonSend,buttonBroadcast,buttonLogout,buttonConnect;
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
     private JLabel labelConnectStatus, labelUserName, labelServerAddress, labelServerPort,userListTitle;
@@ -52,14 +52,14 @@ public class NewUi_edit extends JFrame implements Runnable {
         userListTitle.setForeground(new Color(0, 128, 0));
 
         buttonBroadcast = new JButton("Broadcast");
-        buttonRefreshUsers = new JButton("Refresh");
+//        buttonRefreshUsers = new JButton("Refresh");
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
 //        leftPanel.setOpaque(false);
         leftPanel.add(userListTitle);
-        leftPanel.add(buttonRefreshUsers);
+//        leftPanel.add(buttonRefreshUsers);
 
         topPanel.add(leftPanel, BorderLayout.WEST);
 //        topPanel.add(userListTitle, BorderLayout.WEST);
@@ -297,11 +297,11 @@ public class NewUi_edit extends JFrame implements Runnable {
             }
         });
 
-        buttonRefreshUsers.addActionListener(e -> {
-            if (client.isConnectionEstablished) {
-                client.refreshUser();  // 向服务器请求最新用户列表
-            }
-        });
+//        buttonRefreshUsers.addActionListener(e -> {
+//            if (client.isConnectionEstablished) {
+//                client.refreshUser();  // 向服务器请求最新用户列表
+//            }
+//        });
         // 如果你之后添加 refresh、logout 按钮，可以在此加监听器
     }
 

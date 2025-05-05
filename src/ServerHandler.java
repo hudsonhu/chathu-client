@@ -73,6 +73,20 @@ public class ServerHandler implements Runnable {
      * @param message
      */
     private void resolveMessage(String message) throws IOException {
+        if (message.startsWith("JOIN_")) {
+            String[] t   = message.split("_");
+            String user  = t[1];
+            String addr  = t[2];                 // ip:port
+            client.clients.put(user, addr);
+            javax.swing.SwingUtilities.invokeLater(() -> client.ui.updateUsers());
+            return;
+        }
+        if (message.startsWith("LEFT_")) {
+            String user = message.substring(5);
+            client.clients.remove(user);
+            javax.swing.SwingUtilities.invokeLater(() -> client.ui.updateUsers());
+            return;
+        }
         if (message.startsWith("LIST_CLIENTS")) {
             // Format: LIST_CLIENTS userId_ip:port userId_ip:port ...
             String[] list = message.split(" ");

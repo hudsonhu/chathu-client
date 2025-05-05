@@ -129,7 +129,7 @@ public class Client implements Runnable {
         }
         scheduler.scheduleAtFixedRate(() -> {
             if (isConnectionEstablished) refreshUser();
-        }, 0, 3, java.util.concurrent.TimeUnit.SECONDS);
+        }, 0, 10, java.util.concurrent.TimeUnit.SECONDS);
         acceptClient();
     }
 
@@ -250,8 +250,6 @@ public class Client implements Runnable {
             } else {
                 ui.updateChat(" Peer " + recipient + " not connected, message pending");
             }
-        } finally {
-            ui.updateChat(" Sent to " + recipient + ": " + message);
         }
     }
 
